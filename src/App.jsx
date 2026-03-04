@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyiaVDJfJFYqhmLTcSzVzAXdQ9Yj37tfkrM3ZZdIKUmzI4Unv1XVHKNqORnioaBgv-BrQ/exec";
-const PASSWORD = "vineria2024";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw-TqMIzdimii6yZ7ZzFVt_NcjCdm_mJBhw1rKywSPrvokPprFkrKGVYvKMvnnzIeN_iw/exec";
+const PASSWORD = "vineria2026";
 
 const P = {
   bg: "#0f0e0c", surface: "#161412", card: "#1e1b16",
