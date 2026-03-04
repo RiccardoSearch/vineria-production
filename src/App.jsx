@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwP0h-3mkt8_L9IAq7bkzFkjIsyFaEVQTP9KPnFKlgVLtYVIwAzn7oNNzIhCJTRp-Ziag/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyiaVDJfJFYqhmLTcSzVzAXdQ9Yj37tfkrM3ZZdIKUmzI4Unv1XVHKNqORnioaBgv-BrQ/exec";
 const PASSWORD = "vineria2024";
 
 const P = {
@@ -175,6 +175,99 @@ function EditList({ label, items, field, color, icon, placeholder, onSave }) {
           <Btn onClick={() => { setAdding(false); setDraft(""); }} small outline>✕</Btn>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── FILE UPLOAD ───────────────────────────────────────────────────────
+const ALLOWED_TYPES = ["image/jpeg","image/png","image/webp","image/gif","video/mp4","video/quicktime"];
+const ALLOWED_EXT = ["jpg","jpeg","png","webp","gif","mp4","mov"];
+const MAX_SIZE_BYTES = 30 * 1024 * 1024; // 30MB
+
+function FileUpload({ contentId, onUploaded }) {
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState("");
+  const [error, setError] = useState("");
+  const inputRef = useRef(null);
+
+  const handleFile = async (e) => {
+    const file = e.target.files[0];
+    if (!inputRef.current) return;
+    inputRef.current.value = "";
+    setError("");
+
+    // Validazione lato client
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      setError("❌ Tipo file non consentito. Solo: JPG, PNG, WEBP, GIF, MP4, MOV");
+      return;
+    }
+    const ext = file.name.split(".").pop().toLowerCase();
+    if (!ALLOWED_EXT.includes(ext)) {
+      setError("❌ Estensione non valida");
+      return;
+    }
+    if (file.size > MAX_SIZE_BYTES) {
+      setError("❌ File troppo grande. Massimo 30MB.");
+      return;
+    }
+
+    setUploading(true);
+    setProgress("📦 Preparazione file...");
+
+    try {
+      // Converti in base64
+      const base64 = await new Promise((res, rej) => {
+        const reader = new FileReader();
+        reader.onload = () => res(reader.result.split(",")[1]);
+        reader.onerror = () => rej(new Error("Lettura file fallita"));
+        reader.readAsDataURL(file);
+      });
+
+      setProgress("☁️ Upload su Google Drive...");
+
+      const response = await fetch(SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify({
+          action: "uploadFile",
+          fileName: file.name,
+          mimeType: file.type,
+          data: base64,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setProgress("✅ Caricato!");
+        onUploaded(result.url);
+        setTimeout(() => setProgress(""), 2500);
+      } else {
+        setError("❌ " + (result.error || "Errore sconosciuto"));
+      }
+    } catch (err) {
+      setError("❌ Errore di rete: " + err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <input ref={inputRef} type="file" accept=".jpg,.jpeg,.png,.webp,.gif,.mp4,.mov" onChange={handleFile} style={{ display: "none" }} />
+      <button
+        onClick={() => !uploading && inputRef.current?.click()}
+        disabled={uploading}
+        style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 16px", backgroundColor: uploading ? P.card : P.accent + "18", border: `1px dashed ${uploading ? P.border : P.accent + "66"}`, borderRadius: 10, color: uploading ? P.textMuted : P.accent, fontSize: 12, fontWeight: 700, cursor: uploading ? "not-allowed" : "pointer", width: "100%", justifyContent: "center" }}>
+        {uploading ? progress : "📁 Carica foto / video da dispositivo"}
+      </button>
+      {error && (
+        <div style={{ marginTop: 6, padding: "7px 10px", backgroundColor: P.red + "14", border: `1px solid ${P.red}33`, borderRadius: 8, color: P.red, fontSize: 11 }}>
+          {error}
+        </div>
+      )}
+      <div style={{ marginTop: 6, color: P.textMuted, fontSize: 10, textAlign: "center" }}>
+        JPG · PNG · WEBP · GIF · MP4 · MOV — max 30MB
+      </div>
     </div>
   );
 }
@@ -443,8 +536,15 @@ function Detail({ c, onClose, onStatus, onField, onDelete, saving, isMobile, cat
       )}
 
       {tab === "media" && <>
-        <div style={{ color: P.textMuted, fontSize: 12, marginBottom: 16, lineHeight: 1.6 }}>
-          Aggiungi link a foto/video su Google Drive, Dropbox o qualsiasi altro servizio cloud.
+        <FileUpload contentId={c.id} onUploaded={(url) => {
+          const current = Array.isArray(c.mediaLinks) ? c.mediaLinks : [];
+          const updated = [...current, url];
+          save("mediaLinks", updated.join(" | "));
+        }} />
+        <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "14px 0 10px" }}>
+          <div style={{ flex: 1, height: 1, backgroundColor: P.border }} />
+          <span style={{ color: P.textMuted, fontSize: 10, fontWeight: 700, letterSpacing: "0.08em" }}>OPPURE INCOLLA UN LINK</span>
+          <div style={{ flex: 1, height: 1, backgroundColor: P.border }} />
         </div>
         <EditList label="🎬 Link Media (foto / video)" items={c.mediaLinks} field="mediaLinks" color={P.blue} placeholder="https://drive.google.com/..." onSave={save} />
       </>}
