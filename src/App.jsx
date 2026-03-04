@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyR0-KD5cxzgY17cux8M2LCmAt6Hu_kT2quZG7sv4YXhTG71Lwm3CP7kPGwnBQqQ-5EmQ/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx8dPcjOZyTH4i-nljnYimnw8VdkaR5Yq6me0GpD6qVCEVHWt0W69pgbY2aFFrxF7orqg/exec";
 
 const P = {
   bg: "#0f0e0c", surface: "#161412", card: "#1e1b16", cardHover: "#252118",
@@ -66,6 +66,76 @@ async function saveStatus(id, status) {
     method: "POST",
     body: JSON.stringify({ action: "updateStatus", id, status }),
   });
+}
+
+async function saveField(id, field, value) {
+  await fetch(SCRIPT_URL, {
+    method: "POST",
+    body: JSON.stringify({ action: "updateField", id, field, value }),
+  });
+}
+
+function EditableField({ label, value, field, color, multiline, onSave }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    await onSave(field, draft);
+    setSaving(false);
+    setEditing(false);
+  };
+
+  const handleKeyDown = (e) => {
+    if (!multiline && e.key === "Enter") handleSave();
+    if (e.key === "Escape") { setDraft(value); setEditing(false); }
+  };
+
+  return (
+    <div style={{ marginBottom: 18 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+        <div style={{ color: color || P.textMuted, fontSize: 10, fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase" }}>{label}</div>
+        {!editing && (
+          <button onClick={() => { setDraft(value); setEditing(true); }} style={{
+            background: "none", border: `1px solid ${P.border}`, color: P.textMuted,
+            fontSize: 10, padding: "2px 8px", borderRadius: 6, cursor: "pointer",
+            fontWeight: 600, letterSpacing: "0.05em",
+          }}>✏️ modifica</button>
+        )}
+      </div>
+      {editing ? (
+        <div>
+          {multiline ? (
+            <textarea value={draft} onChange={e => setDraft(e.target.value)} onKeyDown={handleKeyDown}
+              autoFocus rows={5}
+              style={{ width: "100%", padding: "10px 12px", backgroundColor: "#1a1710", border: `1px solid ${P.accent}66`, borderRadius: 8, color: P.text, fontSize: 13, lineHeight: 1.6, resize: "vertical", outline: "none", boxSizing: "border-box", fontFamily: "Georgia, serif" }}
+            />
+          ) : (
+            <input value={draft} onChange={e => setDraft(e.target.value)} onKeyDown={handleKeyDown}
+              autoFocus
+              style={{ width: "100%", padding: "8px 12px", backgroundColor: "#1a1710", border: `1px solid ${P.accent}66`, borderRadius: 8, color: P.text, fontSize: 13, outline: "none", boxSizing: "border-box", fontFamily: "Georgia, serif" }}
+            />
+          )}
+          <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+            <button onClick={handleSave} disabled={saving} style={{
+              padding: "5px 14px", backgroundColor: P.accent, color: "#000",
+              border: "none", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 700,
+            }}>{saving ? "💾 salvataggio..." : "✓ Salva"}</button>
+            <button onClick={() => { setDraft(value); setEditing(false); }} style={{
+              padding: "5px 14px", backgroundColor: "transparent", color: P.textMuted,
+              border: `1px solid ${P.border}`, borderRadius: 6, cursor: "pointer", fontSize: 11,
+            }}>Annulla</button>
+          </div>
+        </div>
+      ) : (
+        <p style={{ color: P.textSub, fontSize: 13, lineHeight: 1.65, margin: 0, cursor: "text" }}
+          onClick={() => { setDraft(value); setEditing(true); }}>
+          {value || <span style={{ color: P.textMuted, fontStyle: "italic" }}>— vuoto, clicca per modificare</span>}
+        </p>
+      )}
+    </div>
+  );
 }
 
 const tag = (label, color, icon) => (
@@ -143,7 +213,7 @@ function Sec({ title, content, color }) {
   );
 }
 
-function Detail({ c, onClose, onStatus, saving, isMobile }) {
+function Detail({ c, onClose, onStatus, onField, saving, isMobile }) {
   const [tab, setTab] = useState("brief");
 
   useEffect(() => { setTab("brief"); }, [c?.id]);
@@ -224,8 +294,8 @@ function Detail({ c, onClose, onStatus, saving, isMobile }) {
       </div>
 
       {tab === "brief" && <>
-        <Sec title="🎣 Hook" content={c.hook} color={P.red} />
-        <Sec title="📝 Script" content={c.script} />
+        <EditableField label="🎣 Hook" value={c.hook} field="hook" color={P.red} multiline={false} onSave={(f, v) => onField(c.id, f, v)} />
+        <EditableField label="📝 Script" value={c.script} field="script" multiline={true} onSave={(f, v) => onField(c.id, f, v)} />
         <Sec title="👥 Comparse" content={(Array.isArray(c.comparse) ? c.comparse : [c.comparse]).join(", ")} />
         <Sec title="🔧 Attrezzatura" content={
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -237,7 +307,7 @@ function Detail({ c, onClose, onStatus, saving, isMobile }) {
             ))}
           </div>
         } />
-        <Sec title="📣 CTA" content={c.cta} color={P.green} />
+        <EditableField label="📣 CTA" value={c.cta} field="cta" color={P.green} multiline={false} onSave={(f, v) => onField(c.id, f, v)} />
         {REFS[c.id] && (
           <Sec title="🔗 Reference Instagram" content={
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -246,10 +316,9 @@ function Detail({ c, onClose, onStatus, saving, isMobile }) {
                   display: "inline-flex", alignItems: "center", gap: 8,
                   padding: "7px 12px", borderRadius: 8, fontSize: 12, fontWeight: 600,
                   backgroundColor: "#1a1510", border: `1px solid ${P.accent}44`,
-                  color: P.accent, textDecoration: "none", transition: "all 0.15s",
+                  color: P.accent, textDecoration: "none",
                 }}>
-                  <span>📸</span>
-                  <span>{ref.label}</span>
+                  <span>📸</span><span>{ref.label}</span>
                   <span style={{ marginLeft: "auto", fontSize: 10, color: P.accentDim }}>↗</span>
                 </a>
               ))}
@@ -276,7 +345,7 @@ function Detail({ c, onClose, onStatus, saving, isMobile }) {
 
       {tab === "montaggio" && (
         <div style={{ backgroundColor: P.card, border: `1px solid ${P.purple}33`, borderRadius: 10, padding: "14px 16px" }}>
-          <Sec title="🎞 Note per Mish" content={c.noteMontaggio} color={P.purple} />
+          <EditableField label="🎞 Note per Mish" value={c.noteMontaggio} field="noteMontaggio" color={P.purple} multiline={true} onSave={(f, v) => onField(c.id, f, v)} />
         </div>
       )}
     </div>
@@ -313,6 +382,12 @@ export default function App() {
     setSaving(id);
     try { await saveStatus(id, status); } catch (e) { console.error(e); }
     setSaving(null);
+  };
+
+  const handleField = async (id, field, value) => {
+    setContenuti(prev => prev.map(c => c.id === id ? { ...c, [field]: value } : c));
+    setSelected(prev => prev?.id === id ? { ...prev, [field]: value } : prev);
+    try { await saveField(id, field, value); } catch (e) { console.error(e); }
   };
 
   const filtered = contenuti.filter(c => {
@@ -418,14 +493,12 @@ export default function App() {
           {filtered.map(c => <Card key={c.id} c={c} onClick={setSelected} selected={selected?.id === c.id} />)}
         </div>
 
-        {/* Detail desktop */}
         {showDetail && (
-          <Detail c={selected} onClose={() => setSelected(null)} onStatus={handleStatus} saving={saving} isMobile={false} />
+          <Detail c={selected} onClose={() => setSelected(null)} onStatus={handleStatus} onField={handleField} saving={saving} isMobile={false} />
         )}
 
-        {/* Detail mobile overlay */}
         {showMobileDetail && (
-          <Detail c={selected} onClose={() => setSelected(null)} onStatus={handleStatus} saving={saving} isMobile={true} />
+          <Detail c={selected} onClose={() => setSelected(null)} onStatus={handleStatus} onField={handleField} saving={saving} isMobile={true} />
         )}
       </div>
     </div>
