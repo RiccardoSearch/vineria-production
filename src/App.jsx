@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx_e9IP1DAgc3YZpKBfEpG2aZVeRgR4rkBY4e63zktdNM7IzBqa_GHZjgckKu2vyom8jA/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyBbwGMeEp9Wd7JTQP6CW97cJWGEBZ4wncGQZGtk0xavI_ffOkLHsmp_o0Kz6GhKAPqFA/exec";
 const PASSWORD = "vineria2026";
 
 const P = {
